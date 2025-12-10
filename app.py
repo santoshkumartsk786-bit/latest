@@ -230,6 +230,68 @@ def predict_sentiment(text):
     except Exception as e:
         st.error(f"Prediction error: {e}")
         return None, None
+                    # Keywords section
+            if show_keywords:
+                st.markdown("---")
+                st.subheader("🔑 Sentiment Keywords")
+
+                keywords = evidence_extractor.extract_keywords(review_text, sentiment)
+
+                if keywords:
+                    st.markdown("Identified sentiment-bearing keywords:")
+                    for kw in keywords:
+                        color = "#28a745" if sentiment == "positive" else "#dc3545"
+                        st.markdown(
+                            f"<span class='keyword-badge' style='background-color:{color};color:white'>{kw}</span>",
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.info("No explicit sentiment-bearing keywords found.")
+
+            # Similar reviews section
+            if show_similar:
+                st.markdown("---")
+                st.subheader("🔍 Similar Reviews from Dataset")
+
+                preprocessed_input = preprocessor.preprocess(review_text)
+                input_vec = tfidf.transform([preprocessed_input])
+
+                similarities = []
+                for sample in sample_reviews:
+                    vec = tfidf.transform([preprocessor.preprocess(sample["review"])])
+                    sim = (input_vec @ vec.T).toarray()[0][0]
+                    similarities.append((sample["review"], sample["sentiment"], sim))
+
+                similarities = sorted(similarities, key=lambda x: x[2], reverse=True)[:3]
+
+                for idx, (text, sent, score) in enumerate(similarities, 1):
+                    st.markdown(f"**Similar Review {idx} ({sent.upper()})** – similarity score: {score:.3f}")
+                    st.markdown(f"> {text}")
+                    st.markdown("")
+
+            # Detailed VADER Scores
+            if show_scores:
+                st.markdown("---")
+                st.subheader("📊 Detailed VADER Sentiment Scores")
+
+                scores = evidence_extractor.get_sentiment_scores(review_text)
+
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    x=list(scores.keys()),
+                    y=list(scores.values())
+                ))
+                fig.update_layout(
+                    title="VADER Sentiment Breakdown",
+                    xaxis_title="Score Type",
+                    yaxis_title="Value",
+                    height=350
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("---")
+        st.success("Analysis Complete.")
+
 
 # ============================================================================
 # STREAMLIT UI
@@ -470,4 +532,5 @@ st.markdown("""
             Logistic Regression + TF-IDF + VADER Sentiment Analysis
         </p>
     </div>
+
 """, unsafe_allow_html=True)
